@@ -1,0 +1,14 @@
+# Google Colab already ships with a recent PyTorch build.
+# Official OmniVoice package (k2-fsa/OmniVoice) pulls in transformers, accelerate,
+# pydub, soundfile, librosa, etc.
+omnivoice>=0.2.0
+
+transformers>=5.3.0
+gradio==5.50.0
+scipy
+
+# For subtitle generation and ASR
+pysrt>=1.1.2
+sentencex>=1.0.17
+faster-whisper>=1.1.1
+ctranslate2>=4.6.0

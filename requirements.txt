@@ -1,0 +1,22 @@
+# Install PyTorch first (see https://pytorch.org/get-started/locally/ for your CUDA version), e.g.
+# pip install torch==2.8.0+cu128 torchaudio==2.8.0+cu128 --extra-index-url https://download.pytorch.org/whl/cu128
+torch>=2.8.0
+torchaudio>=2.8.0
+
+# Official OmniVoice package (k2-fsa/OmniVoice)
+omnivoice>=0.2.0
+
+transformers>=5.3.0
+accelerate>=1.13.0
+pydub>=0.25.1
+soundfile>=0.13.1
+librosa
+numpy
+scipy
+gradio==5.50.0
+
+# For subtitle generation and ASR
+pysrt>=1.1.2
+sentencex>=1.0.17
+faster-whisper>=1.1.1
+ctranslate2>=4.6.0

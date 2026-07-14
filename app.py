@@ -41,30 +41,18 @@ logging.getLogger("omnivoice").setLevel(logging.DEBUG)
 # ---------------------------------------------------------------------------
 # Model Loading (Global Scope)
 #
-# Downloads from Hugging Face (set HF_TOKEN for full speed; set
-# HF_ENDPOINT=https://hf-mirror.com to use the mirror — the Colab notebook
-# does this automatically based on a speed test). If the download still
-# fails, falls back to the official ModelScope mirror as a last resort.
+# Downloads from Hugging Face. Set HF_TOKEN for full download speed —
+# anonymous downloads are throttled/blocked (the Colab notebook sets it
+# from the HF_TOKEN form field).
 # ---------------------------------------------------------------------------
 print("Loading model from k2-fsa/OmniVoice to cuda ...")
 
-try:
-    model = OmniVoice.from_pretrained(
-        "k2-fsa/OmniVoice",
-        device_map="cuda",
-        dtype=torch.float16,
-        load_asr=False,
-    )
-except Exception as e:
-    print(f"Download from Hugging Face failed ({type(e).__name__}); falling back to ModelScope ...")
-    from modelscope import snapshot_download
-
-    model = OmniVoice.from_pretrained(
-        snapshot_download("k2-fsa/OmniVoice"),
-        device_map="cuda",
-        dtype=torch.float16,
-        load_asr=False,
-    )
+model = OmniVoice.from_pretrained(
+    "k2-fsa/OmniVoice",
+    device_map="cuda",
+    dtype=torch.float16,
+    load_asr=False,
+)
 sampling_rate = model.sampling_rate
 print("Model loaded successfully!")
 

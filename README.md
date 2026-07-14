@@ -32,10 +32,8 @@ Uses the **official `omnivoice` pip package (v0.2.0+)** — no source fork neede
 1. Click the **Open In Colab** badge above.
 2. Set the runtime to **GPU** (T4 is enough): `Runtime → Change runtime type → T4 GPU`.
 3. Run the **Install OmniVoice** cell.
-4. In the **Run Gradio APP** cell, paste your Hugging Face token into the `HF_TOKEN` field (free — create one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), type *Read*). Hugging Face throttles/blocks anonymous downloads, so a token gives full download speed.
+4. In the **Run Gradio APP** cell, paste your Hugging Face token into the `HF_TOKEN` field (free — create one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), type *Read*). Hugging Face throttles/blocks anonymous downloads, so the token is required for full download speed.
 5. Run the cell and open the public `*.gradio.live` link.
-
-> **Note on model download:** the cell tests huggingface.co download speed first — if it's good, the model downloads from Hugging Face; if it's slow or blocked, it automatically switches to hf-mirror.com. As a last resort the app falls back to the official [ModelScope mirror](https://www.modelscope.cn/models/k2-fsa/OmniVoice).
 
 ---
 

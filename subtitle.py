@@ -203,10 +203,11 @@ def load_whisper_model(model_name="deepdml/faster-whisper-large-v3-turbo-ct2"):
                       compute_type=compute_type,
                   )
     except Exception as e:
-      model_dir = download_model(
-                  "deepdml/faster-whisper-large-v3-turbo-ct2",
-                  download_folder="./",
-                  redownload=False)
+      # Hugging Face blocks/throttles anonymous downloads sometimes;
+      # fall back to the ModelScope mirror (no login needed).
+      print(f"Whisper download from Hugging Face failed ({type(e).__name__}); using ModelScope mirror ...")
+      from modelscope import snapshot_download
+      model_dir = snapshot_download("pengzhendong/faster-whisper-large-v3-turbo")
       whisper_model = WhisperModel(
                   model_dir,
                   device=device,

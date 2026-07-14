@@ -31,9 +31,9 @@ Uses the **official `omnivoice` pip package (v0.2.0+)** — no source fork neede
 
 1. Click the **Open In Colab** badge above.
 2. Set the runtime to **GPU** (T4 is enough): `Runtime → Change runtime type → T4 GPU`.
-3. Run the **Install OmniVoice** cell.
-4. In the **Run Gradio APP** cell, paste your Hugging Face token into the `HF_TOKEN` field (free — create one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), type *Read*). Hugging Face throttles/blocks anonymous downloads, so the token is required for full download speed.
-5. Run the cell and open the public `*.gradio.live` link.
+3. **One-time:** add your Hugging Face token to Colab **Secrets** — click the 🔑 icon in the left sidebar → *Add new secret* → Name: `HF_TOKEN`, Value: your token (create one free at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), type *Read*) → enable *Notebook access*. Hugging Face throttles/blocks anonymous downloads, so the token is required for full download speed.
+4. Run the **Install OmniVoice** cell.
+5. Run the **Run Gradio APP** cell and open the public `*.gradio.live` link.
 
 ---
 

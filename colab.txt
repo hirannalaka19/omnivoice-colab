@@ -6,9 +6,6 @@ omnivoice>=0.2.0
 # ModelScope mirror fallback when Hugging Face blocks anonymous downloads
 modelscope
 
-# High-performance parallel downloader for Hugging Face
-hf_transfer
-
 transformers>=5.3.0
 gradio==5.50.0
 scipy

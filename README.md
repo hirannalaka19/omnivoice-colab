@@ -32,10 +32,9 @@ Uses the **official `omnivoice` pip package (v0.2.0+)** — no source fork neede
 1. Click the **Open In Colab** badge above.
 2. Set the runtime to **GPU** (T4 is enough): `Runtime → Change runtime type → T4 GPU`.
 3. Run the **Install OmniVoice** cell.
-4. In the **Run Gradio APP** cell, paste your Hugging Face token into the `HF_TOKEN` field (free — create one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), type *Read*). Without a token, Hugging Face heavily throttles the 3.3 GB model download.
-5. Run the cell and open the public `*.gradio.live` link.
+4. Run the **Run Gradio APP** cell and open the public `*.gradio.live` link.
 
-> **Model download stuck / very slow?** Make sure `HF_TOKEN` is set. If huggingface.co itself is slow or blocked in your region, also tick `Use_HF_Mirror`.
+> **Note on model download:** the cell tests download speed first — if huggingface.co is throttling anonymous downloads, it automatically switches to hf-mirror.com. If both are slow, just re-run the cell a bit later.
 
 ---
 

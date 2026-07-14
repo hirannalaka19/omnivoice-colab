@@ -9,6 +9,14 @@ try:
 except Exception as e:
   print(e)
 
+# Respect HF_ENDPOINT (e.g. https://hf-mirror.com) and HF_TOKEN if set
+HF_BASE = os.environ.get("HF_ENDPOINT", "https://huggingface.co").rstrip("/")
+HF_HEADERS = (
+    {"Authorization": f"Bearer {os.environ['HF_TOKEN']}"}
+    if os.environ.get("HF_TOKEN")
+    else {}
+)
+
 def download_file(url, path, redownload=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -17,7 +25,7 @@ def download_file(url, path, redownload=False):
             return f"✔️ Skipped: {os.path.basename(path)}"
 
     try:
-        with requests.get(url, stream=True) as r:
+        with requests.get(url, stream=True, headers=HF_HEADERS) as r:
             r.raise_for_status()
             total = int(r.headers.get("content-length", 0))
 
@@ -78,8 +86,8 @@ def download_model(
     # ---------- FALLBACK PARALLEL DOWNLOAD ----------
     print("🚀 Starting parallel download...")
 
-    api_url = f"https://huggingface.co/api/models/{repo_id}"
-    response = requests.get(api_url)
+    api_url = f"{HF_BASE}/api/models/{repo_id}"
+    response = requests.get(api_url, headers=HF_HEADERS)
     response.raise_for_status()
 
     files = [f["rfilename"] for f in response.json().get("siblings", [])]
@@ -90,7 +98,7 @@ def download_model(
         futures = []
 
         for file in files:
-            url = f"https://huggingface.co/{repo_id}/resolve/main/{file}"
+            url = f"{HF_BASE}/{repo_id}/resolve/main/{file}"
             path = os.path.join(download_dir, file)
 
             futures.append(

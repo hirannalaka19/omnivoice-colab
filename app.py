@@ -39,18 +39,48 @@ logging.basicConfig(
 logging.getLogger("omnivoice").setLevel(logging.DEBUG)
 
 # ---------------------------------------------------------------------------
+# Device Selection
+#
+# Colab hands out a CPU runtime by default, and forgetting to switch to a GPU
+# is the most common way this app "breaks". Detect it up front and say exactly
+# what to do, instead of failing deep inside from_pretrained with a stack trace.
+# Set OMNIVOICE_DEVICE to override (e.g. "cpu" to force it).
+# ---------------------------------------------------------------------------
+DEVICE = os.environ.get("OMNIVOICE_DEVICE", "").strip().lower()
+if not DEVICE:
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+if DEVICE == "cuda" and not torch.cuda.is_available():
+    print("⚠️  OMNIVOICE_DEVICE=cuda was requested but no GPU is visible — using CPU.")
+    DEVICE = "cpu"
+
+if DEVICE == "cpu":
+    print(
+        "\n" + "=" * 72 + "\n"
+        "⚠️  NO GPU DETECTED — the app still runs, but expect several minutes\n"
+        "    per clip instead of a few seconds.\n\n"
+        "    In Colab:  Runtime → Change runtime type → T4 GPU → Save,\n"
+        "               then re-run the cells.\n"
+        + "=" * 72 + "\n"
+    )
+
+# float16 is a GPU optimisation; on CPU those kernels are missing or slower
+# than plain float32.
+DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
+
+# ---------------------------------------------------------------------------
 # Model Loading (Global Scope)
 #
 # Downloads from Hugging Face. Set HF_TOKEN for full download speed —
 # anonymous downloads are throttled/blocked (the Colab notebook sets it
 # from the HF_TOKEN form field).
 # ---------------------------------------------------------------------------
-print("Loading model from k2-fsa/OmniVoice to cuda ...")
+print(f"Loading model from k2-fsa/OmniVoice to {DEVICE} ...")
 
 model = OmniVoice.from_pretrained(
     "k2-fsa/OmniVoice",
-    device_map="cuda",
-    dtype=torch.float16,
+    device_map=DEVICE,
+    dtype=DTYPE,
     load_asr=False,
 )
 sampling_rate = model.sampling_rate
@@ -137,23 +167,44 @@ _ATTR_INFO = {
 # ---------------------------------------------------------------------------
 # Core Logic & Helpers
 # ---------------------------------------------------------------------------
+_WHISPER_BY_NAME = {str(k).lower(): v for k, v in (WHISPER_LANGUAGE_CODE or {}).items()}
+_WHISPER_BY_CODE = {str(v).lower(): v for v in (WHISPER_LANGUAGE_CODE or {}).values()}
+
+
+def whisper_lang_code(lang):
+    """Map an OmniVoice display name to a Whisper language code, or None.
+
+    OmniVoice ships 646 language names, Whisper handles 84, and the two lists
+    disagree on naming: OmniVoice lists regional varieties ("Egyptian Arabic",
+    "Northern Pashto") where Whisper has a single umbrella entry. So fall back
+    to matching whole words of 4+ characters, which resolves those varieties to
+    their parent language without letting a short code like "ar" match inside
+    an unrelated name such as "Western Maninkakan" — the substring test this
+    replaced matched almost everything, so nothing was ever filtered out.
+    """
+    if not lang or str(lang).strip().lower() in ("", "auto"):
+        return None
+
+    key = str(lang).strip().lower()
+    if key in _WHISPER_BY_NAME:
+        return _WHISPER_BY_NAME[key]
+    if key in _WHISPER_BY_CODE:
+        return _WHISPER_BY_CODE[key]
+
+    tokens = {t for t in re.findall(r"[a-z]+", key) if len(t) >= 4}
+    if tokens:
+        for name, code in _WHISPER_BY_NAME.items():
+            if tokens & set(re.findall(r"[a-z]+", name)):
+                return code
+    return None
+
+
 def _is_whisper_supported(lang):
     """Check if the selected language is supported by Whisper to save processing time."""
-    if not lang or lang == "Auto":
+    if not lang or lang == "Auto" or WHISPER_LANGUAGE_CODE is None:
         return True
 
-    if WHISPER_LANGUAGE_CODE is None:
-        return True
-
-    supported_langs = [str(k).lower() for k in WHISPER_LANGUAGE_CODE.keys()] + \
-                      [str(v).lower() for v in WHISPER_LANGUAGE_CODE.values()]
-
-    lang_lower = lang.lower()
-    for w_lang in supported_langs:
-        if w_lang in lang_lower or lang_lower in w_lang:
-            return True
-
-    return False
+    return whisper_lang_code(lang) is not None
 
 def generate_subtitles_if_needed(wav_path, lang, want_subs):
     """Generates Subtitles only if user requested them and language is supported."""
@@ -165,8 +216,7 @@ def generate_subtitles_if_needed(wav_path, lang, want_subs):
         return None, None, None
 
     try:
-        whisper_lang = lang if (lang and lang != "Auto") else None
-        whisper_results = subtitle_maker(wav_path, whisper_lang)
+        whisper_results = subtitle_maker(wav_path, whisper_lang_code(lang))
         if whisper_results and len(whisper_results) > 3:
             return whisper_results[1], whisper_results[2], whisper_results[3]
     except Exception as e:
@@ -179,8 +229,10 @@ def tts_file_name(text, language="en"):
     global temp_audio_dir
 
     # --- Clean text ---
-    clean_text = re.sub(r'[^a-zA-Z\s]', '', text)  # keep only letters + spaces
-    clean_text = clean_text.lower().strip().replace(" ", "_")
+    # \w keeps letters in every script, so Chinese/Hindi/Sinhala text still
+    # produces a readable stem instead of being stripped down to "audio".
+    clean_text = re.sub(r'[^\w\s-]', '', text, flags=re.UNICODE)
+    clean_text = re.sub(r'[\s-]+', '_', clean_text).strip('_').lower()
 
     if not clean_text:
         clean_text = "audio"
@@ -190,6 +242,7 @@ def tts_file_name(text, language="en"):
 
     # --- Clean language ---
     lang = re.sub(r'\s+', '_', language.strip().lower()) if language else "unknown"
+    lang = re.sub(r'[^\w_]', '', lang, flags=re.UNICODE) or "unknown"
 
     # --- Random suffix ---
     rand = uuid.uuid4().hex[:8].upper()
@@ -208,8 +261,7 @@ def _gen_core(
 
     if mode == "clone" and ref_audio and not ref_text:
         try:
-            whisper_lang = language if (language and language != "Auto") else None
-            whisper_results = subtitle_maker(ref_audio, whisper_lang)
+            whisper_results = subtitle_maker(ref_audio, whisper_lang_code(language))
             if whisper_results and len(whisper_results) > 7:
                 ref_text = whisper_results[7]
         except Exception as e:
@@ -360,8 +412,7 @@ with gr.Blocks(theme=theme, css=css, title="OmniVoice Demo") as demo:
                 if not audio_path:
                     return gr.update(value="")
                 try:
-                    whisper_lang = lang if lang != "Auto" else None
-                    whisper_results = subtitle_maker(audio_path, whisper_lang)
+                    whisper_results = subtitle_maker(audio_path, whisper_lang_code(lang))
                     if whisper_results and len(whisper_results) > 7:
                         return gr.update(value=whisper_results[7])
                 except Exception as e:

@@ -6,7 +6,6 @@
 
 import os
 import re
-import gc
 import uuid
 import math
 import shutil
@@ -142,12 +141,32 @@ def get_language_name(code):
             return name
     return None
 
+def resolve_language(source_language):
+    """Accepts a display name ('English'), an ISO code ('en'), 'Auto' or None.
+
+    Callers upstream may hand us either form, so normalise here rather than
+    silently falling through to auto-detection on a name we could have matched.
+    """
+    if not source_language:
+        return None
+
+    key = str(source_language).strip().lower()
+    if not key or key == "auto":
+        return None
+
+    for name, code in LANGUAGE_CODE.items():
+        if key == name.lower() or key == code.lower():
+            return code
+    return None
+
 def clean_file_name(file_path):
     """Generates a clean, unique file name to avoid path issues."""
     dir_name = os.path.dirname(file_path)
     base_name, extension = os.path.splitext(os.path.basename(file_path))
 
-    cleaned_base = re.sub(r'[^a-zA-Z\d]+', '_', base_name)
+    # \w rather than [a-zA-Z\d] so non-Latin stems survive instead of
+    # collapsing to a single underscore.
+    cleaned_base = re.sub(r'[^\w]+', '_', base_name, flags=re.UNICODE)
     cleaned_base = re.sub(r'_+', '_', cleaned_base).strip('_')
     random_uuid = uuid.uuid4().hex[:6]
 
@@ -171,7 +190,8 @@ def format_segments(segments):
         })
         speech_to_text += text + " "
 
-        for word in i.words:
+        # VAD-filtered segments can come back without word data.
+        for word in (i.words or []):
             word_data = {
                 "word": word.word.strip(),
                 "start": word.start,
@@ -228,30 +248,36 @@ def whisper_subtitle(uploaded_file, source_language):
     audio_file_path = uploaded_file
 
     # 3. Transcribe
-    detected_language = source_language
-    lang_code = LANGUAGE_CODE.get(source_language)
+    lang_code = resolve_language(source_language)
+    detected_language = get_language_name(lang_code) if lang_code else None
+
+    # Synthesised speech has long, perfectly clean silences, and that is exactly
+    # where Whisper hallucinates repeated phrases and smears word timings.
+    # VAD trims them out; not conditioning on previous text stops one bad
+    # segment from poisoning every segment after it.
+    transcribe_kwargs = dict(
+        word_timestamps=True,
+        vad_filter=True,
+        condition_on_previous_text=False,
+    )
 
     #fallback to auto if language not found
-    if source_language == "Auto" or lang_code is None:
-        segments, info = model.transcribe(audio_file_path, word_timestamps=True)
-        detected_lang_code = info.language
-        detected_language = get_language_name(detected_lang_code)
+    if lang_code is None:
+        segments, info = model.transcribe(audio_file_path, **transcribe_kwargs)
+        detected_language = get_language_name(info.language)
     else:
         segments, _ = model.transcribe(
             audio_file_path,
-            word_timestamps=True,
-            language=lang_code
+            language=lang_code,
+            **transcribe_kwargs
         )
 
     sentence_timestamps, word_timestamps, transcript_text = format_segments(segments)
 
-    # 4. Cleanup
-    del model
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    if not detected_language:
+        detected_language = "unknown"
 
-    # 5. Prepare output file paths
+    # 4. Prepare output file paths
     base_filename = os.path.splitext(os.path.basename(uploaded_file))[0][:30]
     srt_base = f"{SUBTITLE_FOLDER}/{base_filename}_{detected_language}.srt"
     clean_srt_path = clean_file_name(srt_base)
@@ -260,7 +286,7 @@ def whisper_subtitle(uploaded_file, source_language):
     custom_srt_path = clean_srt_path.replace(".srt", "_Multiline.srt")
     shorts_srt_path = clean_srt_path.replace(".srt", "_shorts.srt")
 
-    # 6. Generate all subtitle files
+    # 5. Generate all subtitle files
     generate_srt_from_sentences(sentence_timestamps, srt_path=clean_srt_path)
     word_level_srt(word_timestamps, srt_path=word_srt_path)
     shorts_json = write_sentence_srt(

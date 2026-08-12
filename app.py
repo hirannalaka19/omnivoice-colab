@@ -498,7 +498,7 @@ css = """
 }
 """
 
-def _lang_dropdown(label="Language (optional)", value="Auto"):
+def _lang_dropdown(label="Language (optional)", value="English"):
     return gr.Dropdown(
         label=label, choices=_ALL_LANGUAGES, value=value,
         allow_custom_value=False, interactive=True,
@@ -641,7 +641,7 @@ with gr.Blocks(theme=theme, css=css, title="OmniVoice Demo") as demo:
                             )
 
                     with gr.Row():
-                      vd_lang = _lang_dropdown(value='Auto')
+                      vd_lang = _lang_dropdown(value='English')
                       vd_want_subs = gr.Checkbox(label="Want Subtitles ?", value=False)
                     vd_btn = gr.Button("Generate", variant="primary")
                     with gr.Accordion("Character Voice Design", open=False):

@@ -24,6 +24,27 @@ Uses the **official `omnivoice` pip package (v0.2.0+)** — no source fork neede
 * Voice Design — customize voice (gender, age, pitch, accent, style)
 * Fast inference (RTF as low as 0.025)
 * Generate subtitles (SRT) — sentence level, word level, and Shorts style
+* Narrate long scripts — text is split on sentence boundaries and stitched back together
+* Reproducible takes via a seed
+
+---
+
+## 🎚️ Long text & seeds
+
+Both are under **Generation Settings**.
+
+**Seed** — generation is random, so the same text gives a slightly different voice
+every run. Leave it at `-1` to get a new voice each time; the seed that was used is
+printed in the **Status** box. Paste that number back into Seed to reproduce that exact
+take.
+
+**Auto-split long text** (on by default) — anything longer than the chunk size is split
+on sentence boundaries, generated piece by piece, and joined with a short pause. Event
+tags like `[laughter]` are never split. In Voice Design the voice from the first chunk is
+reused for the rest, so a long script stays in one voice.
+
+Setting a fixed **Duration** turns splitting off, since a duration describes a single
+utterance.
 
 ---
 

@@ -215,6 +215,62 @@ def lightning_for(repo):
 
 
 # --------------------------------------------------------------------------
+# peft / torchao workaround
+# --------------------------------------------------------------------------
+
+_PEFT_TORCHAO_CHECKED = False
+
+
+def allow_lora_without_torchao():
+    """Let LoRAs load when the installed torchao is older than peft would like.
+
+    While picking a layer class for each Linear it patches, peft asks whether torchao
+    is available. If torchao is installed but too old, that probe *raises* instead of
+    returning False, and the whole LoRA load dies with it - even though nothing here
+    is torchao-quantised, since this app quantises with bitsandbytes. Colab currently
+    ships torchao 0.10 against a peft that wants 0.16+, which is exactly that trap.
+
+    Nothing is installed or removed: peft is simply told torchao is not there, which
+    is the answer it would have given if Colab had not shipped torchao at all. Only
+    done when the probe actually raises, so a healthy environment is left alone.
+    """
+    global _PEFT_TORCHAO_CHECKED
+    if _PEFT_TORCHAO_CHECKED:
+        return
+    _PEFT_TORCHAO_CHECKED = True
+
+    import sys
+
+    try:
+        from peft import import_utils
+    except Exception:
+        return
+
+    try:
+        import_utils.is_torchao_available()
+        return  # answered with a bool, so peft is happy either way
+    except ImportError as err:
+        print(f"[qwen] peft's torchao check would break LoRA loading, disabling it ({err})")
+    except Exception:
+        return
+
+    def torchao_is_not_here():
+        return False
+
+    # peft's dispatchers did `from peft.import_utils import is_torchao_available`, so
+    # the name lives in their namespaces too and has to be rebound in each of them.
+    try:
+        import peft.tuners.lora.torchao  # noqa: F401 - ensure it exists before patching
+    except Exception:
+        pass
+
+    import_utils.is_torchao_available = torchao_is_not_here
+    for name, module in list(sys.modules.items()):
+        if name.startswith("peft") and getattr(module, "is_torchao_available", None) is not None:
+            module.is_torchao_available = torchao_is_not_here
+
+
+# --------------------------------------------------------------------------
 # Pipeline manager
 # --------------------------------------------------------------------------
 
@@ -452,11 +508,18 @@ class QwenRunner:
             weight_name = files.get(want)
             if progress:
                 progress(0.08, desc=f"Fetching the {want}-step Lightning LoRA (~0.9 GB, once)...")
+            allow_lora_without_torchao()
             try:
                 self.pipe.load_lora_weights(
                     lora_repo, weight_name=weight_name, adapter_name="lightning", token=hf_token()
                 )
             except Exception as err:  # noqa: BLE001
+                # A failed injection can leave half-patched layers behind, so clear the
+                # adapter before handing the error on - a retry then starts clean.
+                try:
+                    self.pipe.delete_adapters("lightning")
+                except Exception:
+                    pass
                 raise gr.Error(
                     f"Could not load the Lightning LoRA ({weight_name}): "
                     f"{type(err).__name__}: {str(err)[:300]}\n\n"
@@ -499,9 +562,14 @@ class QwenRunner:
         token = hf_token()
         if token:
             kwargs["token"] = token
+        allow_lora_without_torchao()
         try:
             self.pipe.load_lora_weights(source, **kwargs)
         except Exception as err:  # noqa: BLE001
+            try:
+                self.pipe.delete_adapters("user_lora")
+            except Exception:
+                pass
             raise gr.Error(f"LoRA failed to load: {type(err).__name__}: {str(err)[:300]}")
         self.lora = source
         self.lora_scale = float(scale)

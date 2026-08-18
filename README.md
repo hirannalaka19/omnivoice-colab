@@ -1,12 +1,93 @@
 # Colab Notebooks
 
-Two one-click Google Colab apps. Press a badge, run the cells top to bottom, open the
+Three one-click Google Colab apps. Press a badge, run the cells top to bottom, open the
 `*.gradio.live` link that appears.
 
 | Notebook | What it does | Open |
 |---|---|---|
+| **Qwen-Image Generator** | Text → image with Qwen-Image, best-in-class text rendering (A100 friendly) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/Qwen_Image_Colab.ipynb) |
 | **FLUX.1 Image Generator** | Text → image with FLUX.1-dev (A100 friendly) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/FLUX_Colab.ipynb) |
 | **OmniVoice** | Text → speech, voice cloning, subtitles | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/OmniVoice_Colab.ipynb) |
+
+---
+---
+
+# 🖼️ Qwen-Image Generator
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/Qwen_Image_Colab.ipynb)
+
+Run **[Qwen-Image](https://huggingface.co/Qwen/Qwen-Image)** — Alibaba's 20B text-to-image
+model — on a Colab **A100**, through a Gradio UI. It is **Apache-2.0 and ungated**: no licence
+to accept, no token required, commercial use allowed.
+
+## 🔹 What it can do
+
+* **Text → image** with Qwen-Image, Qwen-Image-2512, a pre-quantised NF4 build, or any custom repo id
+* **Text inside images** — the model's headline strength, in English *and* Chinese: signs,
+  posters, slides, whole paragraphs
+* **8-step and 4-step Lightning LoRAs** — 6–12× faster than the 50-step base model, loaded
+  together with the scheduler they were distilled with
+* **Image → image** — redraw an upload, with a strength slider
+* **LoRA** — load any Qwen-Image LoRA from the Hub, stacked on top of Lightning
+* A **real negative prompt** — Qwen-Image uses true CFG, unlike FLUX
+* 8 aspect-ratio presets (the resolutions Qwen was tuned on) plus free width/height
+* Seed control, batches of up to 8, live per-step progress, settings saved into the PNG
+  metadata, and a ZIP download
+* Picks its own precision from the GPU it gets — bf16, CPU offload, group offload, or 4-bit NF4
+
+## 💻 Which GPU
+
+Set it under `Runtime → Change runtime type`.
+
+| GPU | Precision used | 50-step Quality | 8-step Fast |
+|---|---|---|---|
+| **A100 80GB / H100** | bf16, whole pipeline on GPU | ~40–60 s | ~8–12 s |
+| **A100 40GB** (Colab Pro) | 4-bit NF4 | ~1.5–2 min | ~15–25 s |
+| **L4 24GB** | 4-bit NF4 | ~5–7 min | ~50–70 s |
+| **T4 16GB** (free tier) | 4-bit NF4 | ~15–20 min | ~2–3 min |
+
+Rough timings at 1328×1328. A 40 GB A100 cannot hold the bf16 transformer (38 GiB) plus
+activations, so **Auto** drops it to NF4 rather than letting it fail — choose *bf16 + group
+offload* if you want full precision on that card, at the cost of speed.
+
+The first run of a session also downloads **~57 GB** of weights — that is one-off, not per
+image. Pick the `diffusers/qwen-image-nf4` model to make it ~28 GB instead.
+
+## 🚀 How to use
+
+1. Click the **Open In Colab** badge above.
+2. `Runtime → Change runtime type → A100 GPU → Save`.
+3. Run **1. Check the GPU**.
+4. Run **2. Install Qwen-Image + the app** (~2 min).
+5. Run **3. Download the model weights**.
+6. Run **4. Run the Qwen-Image generator**, then open the `https://….gradio.live` link.
+   Leave that cell running — stopping it closes the app.
+
+Images land in `/content/Qwen_Output`. Colab deletes that when the runtime disconnects, so use
+the optional **Copy to Google Drive** cell if you want to keep them.
+
+## ✍️ Prompting notes
+
+Write descriptive sentences, in English or Chinese — it reads long prompts well. For **text in
+the image**, put the words in quotes: *a sign reading "OPEN LATE"*. It is a **true CFG** model,
+so the negative prompt genuinely does something, but only in *Quality* mode: the Lightning
+LoRAs are distilled without guidance, which is why the app pins True CFG to 1.0 there.
+
+## 🧰 Run it locally
+
+```bash
+git clone https://github.com/hirannalaka19/omnivoice-colab.git
+cd omnivoice-colab
+pip install torch --index-url https://download.pytorch.org/whl/cu124   # if you don't have it
+pip install -r qwen_colab.txt
+python qwen_image_app.py
+```
+
+## ⚖️ Licence
+
+Qwen-Image and the Lightning LoRAs are **Apache-2.0** — personal *and* commercial use are both
+fine, which is the main practical difference from the FLUX notebook below. You are responsible
+for what you generate.
 
 ---
 ---
@@ -170,7 +251,9 @@ python app.py
 * 👨‍💻 Colab wrappers & Gradio apps by [HiranNalaka](https://github.com/hirannalaka19)
 * 👉 [k2-fsa/OmniVoice](https://github.com/k2-fsa/OmniVoice) — the original OmniVoice model
 * 👉 [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) — the FLUX.1 model
-* 👉 [huggingface/diffusers](https://github.com/huggingface/diffusers) — FLUX inference
+* 👉 [Qwen/Qwen-Image](https://huggingface.co/Qwen/Qwen-Image) — the Qwen-Image model
+* 👉 [lightx2v/Qwen-Image-Lightning](https://huggingface.co/lightx2v/Qwen-Image-Lightning) — the few-step Qwen LoRAs
+* 👉 [huggingface/diffusers](https://github.com/huggingface/diffusers) — FLUX and Qwen-Image inference
 
 ---
 

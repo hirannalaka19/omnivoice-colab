@@ -25,7 +25,7 @@ from PIL import Image, PngImagePlugin
 # --------------------------------------------------------------------------
 
 # On Colab everything lives under /content; locally keep it next to the script.
-OUTPUT_DIR = Path("/content/Flux_Output") if Path("/content").is_dir() else Path("Flux_Output")
+OUTPUT_DIR = (Path("/content/Flux_Output") if Path("/content").is_dir() else Path("Flux_Output")).resolve()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_SEED = 2**31 - 1
@@ -634,7 +634,11 @@ def build_ui():
                             gr.Markdown(
                                 "FLUX.1-dev is guidance-distilled, so there is **no negative prompt**. "
                                 "Describe what you *do* want, in plain sentences - it reads long prompts "
-                                "well. Guidance 2.5-4 stays natural; above 6 it gets crunchy."
+                                "well. Guidance 2.5-4 stays natural; above 6 it gets crunchy.\n\n"
+                                "On a long prompt the log says *\"CLIP can only handle sequences up to 77 "
+                                "tokens\"*. That is normal and not an error: FLUX has two text encoders, and "
+                                "only the small CLIP one truncates. The T5 encoder reads the whole prompt "
+                                "up to the token limit above, and it is the one doing the real work."
                             )
                             free_btn = gr.Button("Unload model / free VRAM", variant="secondary")
                         run = gr.Button("Generate", variant="primary", size="lg")
@@ -762,4 +766,11 @@ if __name__ == "__main__":
     print(f"GPU: {gpu} ({vram:.0f} GB)")
     print(f"HF token: {'found' if hf_token() else 'MISSING - gated models will fail'}")
     print(f"Output folder: {OUTPUT_DIR}")
-    build_ui().queue(max_size=12).launch(share=True, show_error=True, inline=False)
+    # allowed_paths: OUTPUT_DIR sits outside the working directory, and Gradio refuses to
+    # serve files from anywhere it was not told about, so the download buttons need it.
+    build_ui().queue(max_size=12).launch(
+        share=True,
+        show_error=True,
+        inline=False,
+        allowed_paths=[str(OUTPUT_DIR)],
+    )

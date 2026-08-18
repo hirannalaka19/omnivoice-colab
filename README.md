@@ -1,4 +1,100 @@
-# Run OmniVoice On Google Colab
+# Colab Notebooks
+
+Two one-click Google Colab apps. Press a badge, run the cells top to bottom, open the
+`*.gradio.live` link that appears.
+
+| Notebook | What it does | Open |
+|---|---|---|
+| **FLUX.1 Image Generator** | Text → image with FLUX.1-dev (A100 friendly) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/FLUX_Colab.ipynb) |
+| **OmniVoice** | Text → speech, voice cloning, subtitles | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/OmniVoice_Colab.ipynb) |
+
+---
+---
+
+# 🎨 FLUX.1 Image Generator
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hirannalaka19/omnivoice-colab/blob/main/FLUX_Colab.ipynb)
+
+Run **[FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev)** by Black Forest Labs
+on a Colab **A100**, through a Gradio UI — no local GPU, no setup beyond a Hugging Face token.
+
+## 🔹 What it can do
+
+* **Text → image** with FLUX.1-dev, FLUX.1-Krea-dev, FLUX.1-schnell, or any custom repo id
+* **Image → image** — redraw an upload, with a strength slider
+* **LoRA** — load any FLUX LoRA from the Hub on top of the base model, with a scale slider
+* 8 aspect-ratio presets plus free width/height (snapped to multiples of 16)
+* Seed control for reproducible images, batches of up to 8, live per-step progress
+* Every PNG is saved with its prompt, seed and settings in the metadata, plus a ZIP download
+* Picks its own precision from the GPU it gets — full bf16, CPU offload, or 4-bit NF4
+
+## 💻 Which GPU
+
+Set it under `Runtime → Change runtime type`.
+
+| GPU | Precision used | ~1024×1024, 28 steps |
+|---|---|---|
+| **A100 40GB** (Colab Pro) | bf16, whole pipeline on GPU | ~10–15 s |
+| **L4 24GB** | bf16 + CPU offload | ~50–70 s |
+| **T4 16GB** (free tier) | 4-bit NF4 | ~2–4 min |
+
+The first run of a session also downloads ~34 GB of weights — that is one-off, not per image.
+
+## 🔑 One-time setup
+
+FLUX.1-dev is a **gated** model, so two things are needed before it will download:
+
+1. Open <https://huggingface.co/black-forest-labs/FLUX.1-dev> while signed in to Hugging Face
+   and click **Agree and access repository**.
+2. Create a **Read** token at <https://huggingface.co/settings/tokens>, then in Colab click the
+   **🔑 key icon** in the left sidebar → *Add new secret* → Name `HF_TOKEN`, paste the token,
+   switch on **Notebook access**. It persists across every future session.
+
+> Don't want to do either? Pick `black-forest-labs/FLUX.1-schnell` in step 3 of the notebook —
+> it is ungated, Apache-2.0, and only needs 4 steps per image.
+
+## 🚀 How to use
+
+1. Click the **Open In Colab** badge above.
+2. `Runtime → Change runtime type → A100 GPU → Save`.
+3. Run **1. Check the GPU**.
+4. Run **2. Install FLUX + the app** (~2 min).
+5. Run **3. Download the model weights** (~34 GB, a few minutes).
+6. Run **4. Run the FLUX image generator**, then open the `https://….gradio.live` link.
+   Leave that cell running — stopping it closes the app.
+
+Images land in `/content/Flux_Output`. Colab deletes that when the runtime disconnects, so use
+the optional **Copy to Google Drive** cell if you want to keep them.
+
+## ✍️ Prompting notes
+
+FLUX.1-dev is guidance-distilled, so there is **no negative prompt** — describe what you *do*
+want, in ordinary sentences. It handles long prompts well, is unusually good at rendering
+**text inside images** (put the words in quotes), and looks most natural at guidance 2.5–4.
+
+## 🧰 Run it locally
+
+```bash
+git clone https://github.com/hirannalaka19/omnivoice-colab.git
+cd omnivoice-colab
+pip install torch --index-url https://download.pytorch.org/whl/cu124   # if you don't have it
+pip install -r flux_colab.txt
+export HF_TOKEN=hf_your_token_here
+python flux_app.py
+```
+
+## ⚖️ Licence
+
+FLUX.1-dev and FLUX.1-Krea-dev are under the
+[FLUX.1 \[dev\] Non-Commercial License](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md)
+— personal, research and evaluation use only, **not commercial**. FLUX.1-schnell is Apache-2.0
+and may be used commercially. You are responsible for what you generate; follow the Black Forest
+Labs Acceptable Use Policy.
+
+---
+---
+
+# 🎙️ Run OmniVoice On Google Colab
 
 Run **OmniVoice** easily on Google Colab, no complex setup required.
 
@@ -71,11 +167,15 @@ python app.py
 
 ## 🙌 Credit
 
-* 👨‍💻 Colab wrapper & Gradio app by [HiranNalaka](https://github.com/hirannalaka19)
+* 👨‍💻 Colab wrappers & Gradio apps by [HiranNalaka](https://github.com/hirannalaka19)
 * 👉 [k2-fsa/OmniVoice](https://github.com/k2-fsa/OmniVoice) — the original OmniVoice model
+* 👉 [black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) — the FLUX.1 model
+* 👉 [huggingface/diffusers](https://github.com/huggingface/diffusers) — FLUX inference
 
 ---
 
 ## ⚠️ Disclaimer
 
-Please use this model responsibly. Do not use it for harmful, misleading, or unethical purposes such as unauthorized voice cloning, impersonation, fraud, or scams.
+Please use these models responsibly. Do not use them for harmful, misleading, or unethical
+purposes such as unauthorized voice cloning, impersonation, fraud, scams, deceptive deepfakes,
+or any illegal content. You are responsible for what you generate.
